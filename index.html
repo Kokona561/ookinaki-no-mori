@@ -190,17 +190,12 @@ rt{font-size:.55em;font-family:var(--f-ui)}
       <li><b>手</b><span>光っているところをタップして、ウミガメたちをお手つだいしよう</span></li>
     </ul>
     <div class="capture">
-      <p class="cap-title">えほんにかいた絵をとりこむと、浜で使えるよ</p>
+      <p class="cap-title">えほんにかいた、ウミガメを助ける道具をとりこむと、手に持って浜を歩けるよ</p>
       <input type="file" id="photo" accept="image/*" capture="environment" hidden>
       <div class="slot">
-        <div class="ph" id="ph0">まだ<br>ないよ</div><img id="thumb0" alt="とりこんだ卵を運ぶ道具の絵" hidden>
-        <b>卵を運ぶ道具<small>手に持って歩けるよ</small></b>
+        <div class="ph" id="ph0">まだ<br>ないよ</div><img id="thumb0" alt="とりこんだウミガメを助ける道具の絵" hidden>
+        <b>ウミガメを助ける道具<small>手に持って歩けるよ</small></b>
         <button class="btn ghost" id="cap0" type="button">とりこむ</button>
-      </div>
-      <div class="slot">
-        <div class="ph" id="ph1">まだ<br>ないよ</div><img id="thumb1" alt="とりこんだ洞窟の明かりの絵" hidden>
-        <b>洞窟の明かり<small>最後に洞窟をてらすよ</small></b>
-        <button class="btn ghost" id="cap1" type="button">とりこむ</button>
       </div>
       <p class="cap-msg" id="capMsg" hidden></p>
       <p class="fine">とりこまなくても遊べます</p>
@@ -253,7 +248,7 @@ rt{font-size:.55em;font-family:var(--f-ui)}
     <p class="end-know"><b>しってる？</b> ウミガメは、きょうりゅうがいたころから海でくらしてきた生き物なんだ。</p>
     <p class="end-next">1日目 おしまい　―　2日目につづく</p>
     <div class="row">
-      <button class="btn sm ghost" id="closeEnd" type="button">見わたす</button>
+      <button class="btn sm ghost" id="closeEnd" type="button">浜を歩く</button>
       <button class="btn sm" id="again" type="button">はじめから</button>
     </div>
   </div>
@@ -563,14 +558,14 @@ function layoutHand(){
   handBase={x:halfW-w*.5-halfW*.06,y:-halfH+h*.38,h,w,halfW,halfH};
 }
 function setHandImage(cv){if(handTex)handTex.dispose();handTex=new THREE.CanvasTexture(cv);handCardMat.map=handTex;handCardMat.needsUpdate=true;handAspect=cv.width/cv.height;layoutHand();}
-/* the cave light drawing */
-let lightTex=null;const caveCardMat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.04,side:THREE.DoubleSide,fog:false});
-const caveCard=new THREE.Mesh(new THREE.PlaneGeometry(1,1),caveCardMat);caveCard.position.set(0,1.3,CAVE_Z-.9);caveCard.scale.setScalar(.0001);scene.add(caveCard);
-let caveAspect=.8;
-function setLightImage(cv){if(lightTex)lightTex.dispose();lightTex=new THREE.CanvasTexture(cv);caveCardMat.map=lightTex;caveCardMat.needsUpdate=true;caveAspect=cv.width/cv.height;}
+/* lanterns that light up the cave at the end */
+const lanterns=[];for(const[x,y,z] of[[-1.5,2.3,CAVE_Z-.4],[-.5,2.7,CAVE_Z-.7],[.6,2.6,CAVE_Z-.6],[1.6,2.2,CAVE_Z-.3],[0,1.5,CAVE_Z-1.3]]){
+  const g=new THREE.Group();g.position.set(x,y,z);scene.add(g);
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshBasicMaterial({color:0xffd68a,fog:false})));
+  const h=makeHalo(1.3,0xffb850,.8);g.add(h);g.scale.setScalar(.0001);lanterns.push(g);}
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?80:62;camera.updateProjectionMatrix();}
 addEventListener('resize',()=>{resize();layoutHand();});
-resize();setHandImage(pageTexture('たまごをはこぶ道具','#f3b72f'));setLightImage(pageTexture('どうくつの明かり','#ffcf5a'));
+resize();setHandImage(pageTexture('きみの道具','#f3b72f'));
 
 /* ---------- world update ---------- */
 let gustBoost=0,Gs=0,fieldForce=true;
@@ -595,11 +590,11 @@ function updateWorld(dt,time){
   updInst(vines,dt);updInst(blooms,dt);updInst(litter,dt);
   updTools(dt,time);
   // buddy follows a little ahead on the sea side
-  const bx=help?camera.position.x-.8:-.9,bz=camera.position.z-1.4;buddy.position.x+=(bx-buddy.position.x)*Math.min(1,dt*2);buddy.position.z+=(bz-buddy.position.z)*Math.min(1,dt*2);buddy.position.y=groundY(buddy.position.x);crawl(buddy,time,Math.min(1,speed+.2));
+  const bfx=-Math.sin(yaw),bfz=-Math.cos(yaw);const bx=clamp(camera.position.x+bfx*1.4+bfz*.8,-3.3,3),bz=camera.position.z+bfz*1.4-bfx*.8;buddy.position.x+=(bx-buddy.position.x)*Math.min(1,dt*2);buddy.position.z+=(bz-buddy.position.z)*Math.min(1,dt*2);buddy.rotation.y+=angDiff(Math.atan2(bfx,bfz),buddy.rotation.y)*Math.min(1,dt*2);buddy.position.y=groundY(buddy.position.x);crawl(buddy,time,Math.min(1,speed+.2));
   // finale
   if(done(4)){const s=time-act[4];
     caveLight.intensity=1.8*smooth(s,0,1.5);caveGlow.material.opacity=.55*smooth(s,0,1.5);
-    const hh=1.3*pop(clamp(s/1,0,1));caveCard.scale.set(Math.max(.0001,hh*caveAspect),Math.max(.0001,hh),1);caveCard.position.y=1.1+Math.sin(time*1.4)*.05;
+    lanterns.forEach((l,k)=>{l.scale.setScalar(Math.max(.0001,pop(clamp((s-k*.25)/.6,0,1))));l.position.y+=Math.sin(time*1.5+k)*.0008;});
     party.forEach((p,k)=>{p.scale.setScalar(Math.max(.0001,pop(clamp((s-.6-k*.2)/.6,0,1))*p.userData.s));crawl(p,time,.3);});
     feast.scale.setScalar(Math.max(.0001,pop(clamp((s-1.2)/.6,0,1))));
     if(s<5&&Math.random()<dt*30)spawn((R()-.5)*3,.3+R()*2.4,CAVE_Z+.5+R()*2,0,.3+R()*.4,0,1.4);
@@ -688,7 +683,7 @@ function initAudio(){
   shoreTurtles.slice(0,4).forEach(t=>voice([t.position.x,.3,t.position.z],'breath',()=>t.userData.grow>.5,1,.12,3));
   voice([2.4,.2,-1],'cricket',()=>done(1),4600,.05,3);voice([2.6,.2,-5],'cricket',()=>done(1),5100,.04,3);voice([2.2,.2,6],'cricket',()=>done(4),4800,.045,3);
   voice([-1.5,.1,-3],'crab',()=>done(1)||done(0),1,.12,2);voice([1,.1,4],'crab',()=>done(2),1,.12,2);
-  voice([.6,2.6,CAVE_Z-1.2],'drip',()=>dist>LEN*.55,1,.1,2);
+  voice([.6,2.6,CAVE_Z-1.2],'drip',()=>camera.position.z<START_Z-LEN*.55,1,.1,2);
   voice([-1.6,.3,CAVE_Z+1.4],'breath',()=>done(4),1,.16,3);voice([1.6,.3,CAVE_Z+1.3],'breath',()=>done(4),1,.16,3);
 }
 function onWave(){
@@ -724,7 +719,7 @@ const chance=r=>Math.random()<r*.1;
 let side=0,nextCar=0;
 function footstep(){if(!ac)return;const t=ac.currentTime+.01;const sp=ac.createStereoPanner?ac.createStereoPanner():null;let out=footBus;
   if(sp){side^=1;sp.pan.value=side?.14:-.14;sp.connect(footBus);out=sp;setTimeout(()=>sp.disconnect(),1500);}
-  const k=1+(Math.random()-.5)*.2;const inCave=dist>LEN*.85;
+  const k=1+(Math.random()-.5)*.2;const inCave=camera.position.z<START_Z-LEN*.85;
   nburst(out,t,.09,.32,'bandpass',900*k,.6,.015);blip(out,t,120*k,80,.08,.25);
   for(let i=0;i<5;i++)nburst(out,t+.01+Math.random()*.08,.006,.1,'highpass',3200+Math.random()*1500,.8);
   if(inCave)nburst(out,t,.03,.12,'lowpass',400,.7);}
@@ -739,7 +734,7 @@ function tick(){
   lvl('road',.16*(1-pastS));
   if(t>nextCar){if(nextCar>0&&pastS<.5)car();nextCar=t+5+Math.random()*7;}
   set(buzzLv.gain,.03*lightsOn*(1-pastS),.2);
-  const near=smooth(dist/LEN,.6,1);set(verbGain.gain,.18+near*.35,.6);
+  const near=smooth((START_Z-camera.position.z)/LEN,.6,1);set(verbGain.gain,.18+near*.35,.6);
   if(chance((1-Gs)*.3)){const x=(Math.random()-.5)*5,z=camera.position.z-Math.random()*8;if(recAt(x,z,0)<.5){const p=oneShotPanner(x,.1,z,2);for(let i=0;i<5;i++)nburst(p,t+.05+Math.random()*.4,.008,.12,'bandpass',3800,1.2);}}
   for(const tl of tools){if(tl.done||t<tl.nextCall||(help&&help.t===tl))continue;callSound(tl,t+.05,searchMode?2.2:1);tl.nextCall=t+(searchMode?1.1:2.3)+Math.random()*1.2;}
   if(help&&help.phase==='act'&&chance(2.5)){const f=2600+Math.random()*1400;blip(handP,t+.05,f,f*1.2,.05,.03);}
@@ -761,7 +756,7 @@ function hideTip(){helpTip.classList.remove('show','strong');}
 
 /* ---------- state ---------- */
 let yaw=0,pitch=.05,turn=0,walking=false,running=false,finished=false;
-let dist=0,speed=0,stepAcc=STEP*.7,bob=0,clock=0,last=performance.now();
+let px=0,pz=START_Z,freeRoam=false,dist=0,speed=0,stepAcc=STEP*.7,bob=0,clock=0,last=performance.now();
 let arrived=false,searchMode=false,finaleQueued=false;
 let help=null,helpBlend=0;
 let dragId=null,lx=0,ly=0,downX=0,downY=0,downT=0,moved=0,pressing=false;
@@ -855,11 +850,11 @@ function handleTap(x,y){let best=null,bestD=1e9;
     const d=Math.hypot(s.x-x,s.y-y);if(d<thr&&d<bestD){best=t;bestD=d;}}
   if(!best)return;const d2=Math.hypot(camera.position.x-best.x,camera.position.z-best.z);
   if(searchMode||d2<=RANGE)enterHelp(best);else if(clock-lastFar>4){lastFar=clock;say('もうすこし近づいてみよう',2200,true);}}
-const walkOn=e=>{if(!running||finished||help)return;e.preventDefault();walking=true;walkBtn.classList.add('down');try{walkBtn.setPointerCapture(e.pointerId);}catch(_){}};
+const walkOn=e=>{if(!running||(finished&&!freeRoam)||help)return;e.preventDefault();walking=true;walkBtn.classList.add('down');try{walkBtn.setPointerCapture(e.pointerId);}catch(_){}};
 const walkOff=()=>{walking=false;walkBtn.classList.remove('down');};
 walkBtn.addEventListener('pointerdown',walkOn);['pointerup','pointercancel','lostpointercapture'].forEach(ev=>walkBtn.addEventListener(ev,walkOff));walkBtn.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{if(!running)return;
-  if((e.key==='ArrowUp'||e.key==='w'||e.key==='W')&&!finished&&!help){walking=true;walkBtn.classList.add('down');}
+  if((e.key==='ArrowUp'||e.key==='w'||e.key==='W')&&(!finished||freeRoam)&&!help){walking=true;walkBtn.classList.add('down');}
   if(e.key==='ArrowLeft')turn=1;if(e.key==='ArrowRight')turn=-1;
   if(e.key===' '||e.key==='Enter'){if(help&&help.phase==='act'){e.preventDefault();help.fallback=true;helpTap(innerWidth/2,innerHeight/2);return;}
     if(!help){const near=tools.filter(t=>!t.done&&(searchMode||Math.hypot(camera.position.x-t.x,camera.position.z-t.z)<=RANGE));if(near.length){e.preventDefault();enterHelp(near[0]);}}}
@@ -874,7 +869,7 @@ function queueFinale(ms){if(finaleQueued)return;finaleQueued=true;setTimeout(sta
 function startFinale(){if(done(4))return;act[4]=clock;searchMode=false;fieldForce=true;
   if(ac){sparkleSound(caveP,ac.currentTime+.2);}
   for(let k=0;k<80;k++){handCard.getWorldPosition(V);spawn(V.x,V.y,V.z,(R()-.5)*2,R()*1.5,-1-R(),1.4+R());}
-  say(has[1]?'きみのかいた明かりで、洞窟があたたかくなったね':'洞窟に明かりがともったね',4200);
+  say('洞窟に明かりがともったね',4200);
   setTimeout(()=>{say('みんなでごちそうをかこもう',3200);},4800);
   setTimeout(()=>{if(ac)rumble();say('…いま、くらい海で何かが動いた？',3800);},9200);
   setTimeout(()=>{say('気のせいかな…',2800);},13600);
@@ -891,11 +886,14 @@ function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;clock+=dt;
   if(running&&!finished&&!help){const want=walking?1.2:0;speed+=(want-speed)*Math.min(1,dt*(walking?3:6));if(!walking&&speed<.02)speed=0;
     const d=speed*dt;dist=Math.min(LEN,dist+d);stepAcc+=d;bob+=d*Math.PI/STEP;if(stepAcc>=STEP){stepAcc-=STEP;footstep();}if(dist>=LEN){finished=true;speed=0;onArrive();}}
+  else if(running&&freeRoam&&!help){const want=walking?1.2:0;speed+=(want-speed)*Math.min(1,dt*(walking?3:6));if(!walking&&speed<.02)speed=0;
+    const d=speed*dt;if(d>0){const nx=clamp(px-Math.sin(yaw)*d,-3.2,2.9),nz=clamp(pz-Math.cos(yaw)*d,CAVE_Z+1.3,19);const moved2=Math.hypot(nx-px,nz-pz);px=nx;pz=nz;stepAcc+=moved2;bob+=moved2*Math.PI/STEP;if(stepAcc>=STEP){stepAcc-=STEP;footstep();}}}
   else speed=Math.max(0,speed-dt*4);
-  if(running&&!help&&nudgeAt!==-2){const inReach=tools.some(t=>!t.done&&Math.hypot(camera.position.x-t.x,camera.position.z-t.z)<=RANGE);
+  if(!freeRoam){px=0;pz=START_Z-dist;}
+  if(running&&!help&&!freeRoam&&nudgeAt!==-2){const inReach=tools.some(t=>!t.done&&Math.hypot(camera.position.x-t.x,camera.position.z-t.z)<=RANGE);
     if(inReach){if(nudgeAt<0)nudgeAt=clock+7;else if(clock>nudgeAt){say('光っているところをタップしてみよう',3400);nudgeAt=-2;}}}
   yaw+=turn*dt*1.4;updHelp(dt);
-  const pz=START_Z-dist;camera.position.set(0,EYE+groundY(0)+Math.abs(Math.sin(bob))*.035*Math.min(1,speed),pz);
+  camera.position.set(px,EYE+groundY(px)+Math.abs(Math.sin(bob))*.035*Math.min(1,speed),pz);
   if(help&&helpBlend>0){V.copy(help.P);V.y+=groundY(0);camera.position.lerp(V,ease(helpBlend));}
   camera.rotation.set(pitch,yaw,0);
   updHand(dt,clock);updateWorld(dt,clock);if(ac)updateListener();
@@ -936,9 +934,9 @@ function processDrawing(img,r){
 /* ---------- capture UI (two drawings) ---------- */
 const photo=$('photo'),cropEl=$('crop'),cropImg=$('cropImg'),cropBox=$('cropBox'),cropStage=$('cropStage'),capMsg=$('capMsg');
 let rect={x:.12,y:.12,w:.76,h:.76},photoURL=null,slot=0;
-const SLOT_TITLE=['卵を運ぶ道具のところを、わくでかこんでね','洞窟の明かりのところを、わくでかこんでね'];
+const SLOT_TITLE=['ウミガメを助ける道具のところを、わくでかこんでね'];
 function drawBox(){cropBox.style.left=rect.x*100+'%';cropBox.style.top=rect.y*100+'%';cropBox.style.width=rect.w*100+'%';cropBox.style.height=rect.h*100+'%';}
-[0,1].forEach(k=>$('cap'+k).addEventListener('click',()=>{slot=k;photo.click();}));
+$('cap0').addEventListener('click',()=>{slot=0;photo.click();});
 photo.addEventListener('change',()=>{const fl=photo.files&&photo.files[0];if(!fl)return;if(photoURL)URL.revokeObjectURL(photoURL);photoURL=URL.createObjectURL(fl);
   capMsg.hidden=true;$('cropTitle').textContent=SLOT_TITLE[slot];cropImg.onload=()=>{rect={x:.12,y:.12,w:.76,h:.76};drawBox();cropEl.hidden=false;};cropImg.src=photoURL;photo.value='';});
 let cDrag=null;
@@ -951,7 +949,7 @@ const cEnd=e=>{if(cDrag&&e.pointerId===cDrag.id)cDrag=null;};cropBox.addEventLis
 $('cropCancel').addEventListener('click',()=>{cropEl.hidden=true;});
 $('cropOk').addEventListener('click',()=>{let cv=null;try{cv=processDrawing(cropImg,rect);}catch(err){cv=null;}cropEl.hidden=true;
   if(!cv){capMsg.textContent='絵がうまく見つからなかったよ。明るいところで、もういちどとってみてね';capMsg.hidden=false;return;}
-  if(slot===0)setHandImage(cv);else setLightImage(cv);has[slot]=true;
+  setHandImage(cv);has[0]=true;
   const th=$('thumb'+slot);th.src=cv.toDataURL('image/png');th.hidden=false;$('ph'+slot).hidden=true;$('cap'+slot).textContent='とりなおす';});
 
 /* ---------- start / restart ---------- */
@@ -962,14 +960,14 @@ function intro(){setTimeout(()=>{
 $('startBtn').addEventListener('click',()=>{try{initAudio();ac.resume&&ac.resume();}catch(err){ac=null;}
   running=true;$('start').hidden=true;walkBtn.hidden=false;countEl.hidden=false;clearTel();intro();setInterval(tick,100);
   if(navigator.wakeLock){navigator.wakeLock.request('screen').catch(()=>{});}});
-$('closeEnd').addEventListener('click',()=>{$('end').hidden=true;});
+$('closeEnd').addEventListener('click',()=>{$('end').hidden=true;freeRoam=true;walkBtn.classList.remove('off');clearTel();say('浜を自由に歩いてみよう。見たい方を向いて「すすむ」をおしてね',4600);});
 $('again').addEventListener('click',()=>{
   $('end').hidden=true;clearTel();info.hidden=true;guide.hidden=true;backBtn.hidden=true;eraEl.hidden=true;hideTip();
   help=null;helpBlend=0;pastS=0;lightsOn=1;foamExtra=0;
-  dist=0;speed=0;stepAcc=STEP*.7;bob=0;finished=false;arrived=false;searchMode=false;finaleQueued=false;nudgeAt=-1;yaw=0;pitch=.05;
+  dist=0;px=0;pz=START_Z;freeRoam=false;speed=0;stepAcc=STEP*.7;bob=0;finished=false;arrived=false;searchMode=false;finaleQueued=false;nudgeAt=-1;yaw=0;pitch=.05;
   for(let i=0;i<5;i++)act[i]=-1;for(const t of tools){resetTool(t);t.nextCall=ac?ac.currentTime+2:0;}
   for(const c of countEl.children)c.classList.remove('on');
-  caveLight.intensity=0;caveGlow.material.opacity=0;caveCard.scale.setScalar(.0001);party.forEach(p=>p.scale.setScalar(.0001));feast.scale.setScalar(.0001);shadow.material.opacity=0;
+  caveLight.intensity=0;caveGlow.material.opacity=0;lanterns.forEach(l=>l.scale.setScalar(.0001));party.forEach(p=>p.scale.setScalar(.0001));feast.scale.setScalar(.0001);shadow.material.opacity=0;
   killSparks();fieldForce=true;walkBtn.classList.remove('off');intro();});
 document.addEventListener('visibilitychange',()=>{if(!ac)return;if(document.hidden)ac.suspend();else ac.resume();});
 })();
